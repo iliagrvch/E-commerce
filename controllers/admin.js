@@ -1,7 +1,7 @@
 const Product = require("../models/product");
 
 exports.getAddProduct = (req, res, next) => {
-  if (!req.ression.isLoggedIn) {
+  if (!req.session.isLoggedIn) {
     return res.redirect("/login");
   }
   res.render("admin/edit-product", {
@@ -13,9 +13,26 @@ exports.getAddProduct = (req, res, next) => {
 
 exports.postAddProduct = (req, res, next) => {
   const title = req.body.title;
-  const imageUrl = req.body.imageUrl;
+  const image = req.file;
+  console.log(req.file);
   const price = req.body.price;
   const description = req.body.description;
+  const imageUrl = image.path;
+  if (!image) {
+    return res.status(422).render("admin/edit-product", {
+      pageTitle: "Add Product",
+      path: "/admin/add-product",
+      editing: false,
+      hasError: true,
+      product: {
+        title: title,
+        price: price,
+        description: description,
+      },
+      errorMessage: "Attached file is not an image.",
+      validationErrors: [],
+    });
+  }
   const product = new Product({
     title: title,
     price: price,
@@ -60,12 +77,28 @@ exports.postEditProduct = (req, res, next) => {
   const updatedPrice = req.body.price;
   const updatedImageUrl = req.body.imageUrl;
   const updatedDesc = req.body.description;
-
+  const image = req.file;
+  if (image) {
+    product.imageUrl = image.path;
+  } else {
+    return res.status(422).render("admin/edit-product", {
+      pageTitle: "Add Product",
+      path: "/admin/add-product",
+      editing: false,
+      hasError: true,
+      product: {
+        title: title,
+        price: price,
+        description: description,
+      },
+      errorMessage: "Attached file is not an image.",
+      validationErrors: [],
+    });
+  }
   Product.findById(prodId)
     .then((product) => {
-      if(product.userId.toString() !== req.user._id.toString())
-      {
-        return res.redirect('/')
+      if (product.userId.toString() !== req.user._id.toString()) {
+        return res.redirect("/");
       }
       product.title = updatedTitle;
       product.price = updatedPrice;
@@ -80,7 +113,7 @@ exports.postEditProduct = (req, res, next) => {
 };
 
 exports.getProducts = (req, res, next) => {
-  Product.find({userId:req.user._id})
+  Product.find({ userId: req.user._id })
     .populate("userId")
     .then((products) => {
       res.render("admin/products", {
@@ -94,7 +127,7 @@ exports.getProducts = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
-  Product.deleteOne({_id: prodId, userId : req.user._id})
+  Product.deleteOne({ _id: prodId, userId: req.user._id })
     .then(() => {
       res.redirect("/admin/products");
     })
